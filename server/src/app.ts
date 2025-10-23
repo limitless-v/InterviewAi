@@ -9,63 +9,73 @@ import { ENV } from "./config/env.js";
 
 const app = express();
 
-// CORS allowlist: localhost and optionally a deployed frontend origin
+// ✅ Allowed origins: local + deployed frontend
 const allowed = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   ENV.FRONTEND_ORIGIN || ""
 ].filter(Boolean);
 
-const allowAll = allowed.length === 0; // if no explicit FRONTEND_ORIGIN provided
 const corsOptions: cors.CorsOptions = {
-  origin: allowAll
-    ? true
-    : (origin, cb) => {
-        if (!origin) return cb(null, true); // allow curl/postman
-        if (allowed.includes(origin)) return cb(null, true);
-        return cb(new Error("Not allowed by CORS"));
-      },
+  origin: (origin, cb) => {
+    // allow curl/postman/no-origin requests
+    if (!origin) return cb(null, true);
+
+    const isVercel = typeof origin === "string" && origin.endsWith(".vercel.app");
+    const isAllowed = allowed.includes(origin) || isVercel;
+
+    if (isAllowed) return cb(null, true);
+
+    // ✅ instead of throwing an error, just reject gracefully
+    console.warn(`CORS blocked origin: ${origin}`);
+    return cb(null, false);
+  },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: false,
+  credentials: true, // ✅ allow cookies / credentials
   optionsSuccessStatus: 204,
 };
 
+// ✅ Apply CORS before routes
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(json({ limit: "2mb" }));
 
+// ✅ Rate limiting
 const limiter = rateLimit({
   windowMs: 60_000,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.method === 'OPTIONS',
+  skip: (req) => req.method === "OPTIONS",
 });
 app.use(limiter);
 
+// ✅ Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/chat", chatRoutes);
 
+// ✅ Health endpoints
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
-
-// Introspection endpoint to verify LLM provider configuration
-app.get("/api/llm/health", (_req, res) => {
-  return res.json({
+app.get("/api/llm/health", (_req, res) =>
+  res.json({
     provider: ENV.LLM_PROVIDER,
-    hasGroqKey: Boolean(ENV.GROQ_API_KEY)
-  });
-});
+    hasGroqKey: Boolean(ENV.GROQ_API_KEY),
+  })
+);
 
-// Global error handler to ensure consistent JSON and CORS headers
+// ✅ Global error handler
 app.use((err: any, req: any, res: any, _next: any) => {
   console.error(err);
-  // CORS header is already set by cors() above; but ensure fallback
-  if (!res.get('Access-Control-Allow-Origin')) {
-    res.set('Access-Control-Allow-Origin', req.headers.origin || '*');
+  if (!res.headersSent) {
+    if (!res.get("Access-Control-Allow-Origin")) {
+      res.set("Access-Control-Allow-Origin", req.headers.origin || "*");
+    }
+    res
+      .status(err.status || 500)
+      .json({ error: err.message || "Internal Server Error" });
   }
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
 });
 
 export default app;
