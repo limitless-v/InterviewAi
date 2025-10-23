@@ -16,14 +16,23 @@ const allowed = [
   ENV.FRONTEND_ORIGIN || ""
 ].filter(Boolean);
 
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // allow curl/postman
-    if (allowed.includes(origin)) return cb(null, true);
-    return cb(new Error("Not allowed by CORS"));
-  },
-}));
-app.options("*", cors());
+const allowAll = allowed.length === 0; // if no explicit FRONTEND_ORIGIN provided
+const corsOptions: cors.CorsOptions = {
+  origin: allowAll
+    ? true
+    : (origin, cb) => {
+        if (!origin) return cb(null, true); // allow curl/postman
+        if (allowed.includes(origin)) return cb(null, true);
+        return cb(new Error("Not allowed by CORS"));
+      },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(json({ limit: "2mb" }));
 
 const limiter = rateLimit({
