@@ -9,8 +9,21 @@ import { ENV } from "./config/env.js";
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: false }));
-app.options("*", cors({ origin: true, credentials: false }));
+// CORS allowlist: localhost and optionally a deployed frontend origin
+const allowed = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  ENV.FRONTEND_ORIGIN || ""
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow curl/postman
+    if (allowed.includes(origin)) return cb(null, true);
+    return cb(new Error("Not allowed by CORS"));
+  },
+}));
+app.options("*", cors());
 app.use(json({ limit: "2mb" }));
 
 const limiter = rateLimit({

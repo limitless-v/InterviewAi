@@ -22,7 +22,9 @@ export const ENV = {
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || "",
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || "",
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || "",
-  CLOUDINARY_FOLDER: process.env.CLOUDINARY_FOLDER || ""
+  CLOUDINARY_FOLDER: process.env.CLOUDINARY_FOLDER || "",
+  // Frontend origin for CORS allowlist (e.g., https://your-app.vercel.app)
+  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN || ""
 };
 
 export function assertEnv() {
