@@ -1,4 +1,4 @@
-# InterviewAI (v2) – Express + MongoDB + Cloudinary
+# InterviewAI (v2) – Express + MongoDB + Cloudinary + Groq
 
 Practice job interviews with AI. Upload your resume and job description, then get tailored questions and feedback.
 
@@ -6,13 +6,13 @@ Practice job interviews with AI. Upload your resume and job description, then ge
 
 - **Authentication**: Email/password with JWT (`server/src/routes/auth.ts`)
 - **PDF Uploads**: Resume + JD (≤2MB) to Cloudinary (`server/src/routes/documents.ts`), text extracted with `pdf-parse`
-- **Chat & Evaluation**: Start a chat session and get feedback/scores (`server/src/routes/chat.ts`)
+- **Chat & Evaluation**: Start a chat session and get feedback/scores (`server/src/routes/chat.ts`) using **Groq** by default
 - **RAG Prep**: Text is chunked and embedded for relevance (`server/src/utils/{chunking,embeddings}.ts`)
 
 ## Tech Stack
 
 - **Frontend**: React + TypeScript, Vite, Tailwind, Axios
-- **Backend**: Node/Express, MongoDB (Mongoose), JWT, Cloudinary, OpenAI (or alternative providers)
+- **Backend**: Node/Express, MongoDB (Mongoose), JWT, Cloudinary, Groq (default) or OpenAI
 
 ## Project Structure
 
@@ -40,7 +40,10 @@ Create `server/.env`:
 PORT=8080
 MONGODB_URI=your_mongodb_uri
 JWT_SECRET=your_jwt_secret
-OPENAI_API_KEY=your_openai_api_key   # optional if using OpenAI
+LLM_PROVIDER=groq
+GROQ_API_KEY=your_groq_api_key
+# Optional if you switch provider to OpenAI
+OPENAI_API_KEY=your_openai_api_key
 
 # Cloudinary
 CLOUDINARY_CLOUD_NAME=...
@@ -89,16 +92,21 @@ npm run dev
 
 Handled in `server/src/app.ts`. If you see CORS errors, ensure the backend is rebuilt/restarted and `VITE_API_BASE_URL` points to the API URL.
 
-## Swapping the LLM Provider
+## LLM Provider
 
-Default uses OpenAI via `OPENAI_API_KEY`. You can switch to a local or cloud alternative (e.g., Ollama, Groq, OpenRouter) by replacing the model call in `server/src/routes/chat.ts` and guarding via an env like `LLM_PROVIDER`.
+- Default provider is **Groq** (`LLM_PROVIDER=groq`). Set `GROQ_API_KEY` in `server/.env`.
+- You can switch to OpenAI by setting `LLM_PROVIDER=openai` and adding `OPENAI_API_KEY`.
+- Embeddings:
+  - If `LLM_PROVIDER=openai`, the app uses OpenAI embeddings.
+  - Otherwise, it uses a lightweight local embedding fallback (no external API).
 
 ## Troubleshooting
 
 - **CORS errors**: Verify CORS middleware, restart backend, confirm `VITE_API_BASE_URL`.
 - **Mongo errors**: Check `MONGODB_URI` (Atlas SRV requires proper URI and IP allowlist).
 - **PDF parse errors**: Only PDFs allowed, ≤2MB; ensure file type/size.
-- **OpenAI 429**: Quota exceeded. Add billing or switch provider; handle 429 gracefully in `chat.ts`.
+- **Groq 429**: Too many requests/quota. Check Groq console/limits. The API returns a 429 with `code: "LLM_QUOTA"`.
+- **Provider mismatch**: Use `GET /api/llm/health` to verify `{ provider, hasGroqKey, hasOpenAIKey }`.
 
 ---
 
