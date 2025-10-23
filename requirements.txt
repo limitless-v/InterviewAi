@@ -1,0 +1,37 @@
+# Node.js Dependencies (equivalent to Python requirements.txt)
+# This project uses npm for package management
+
+# Production Dependencies
+@supabase/supabase-js==2.57.4
+lucide-react==0.344.0
+openai==6.6.0
+pdf-parse==2.4.5
+react==18.3.1
+react-dom==18.3.1
+react-hot-toast==2.6.0
+react-router-dom==7.9.4
+
+# Development Dependencies
+@eslint/js==9.9.1
+@types/react==18.3.5
+@types/react-dom==18.3.0
+@vitejs/plugin-react==4.3.1
+autoprefixer==10.4.18
+eslint==9.9.1
+eslint-plugin-react-hooks==5.1.0-rc.0
+eslint-plugin-react-refresh==0.4.11
+globals==15.9.0
+postcss==8.4.35
+tailwindcss==3.4.1
+typescript==5.5.3
+typescript-eslint==8.3.0
+vite==5.4.2
+
+# Build Tools
+node>=18.0.0
+npm>=8.0.0
+
+# Environment Variables Required
+# VITE_SUPABASE_URL=your_supabase_url
+# VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+# OPENAI_API_KEY=your_openai_api_key (configured in Supabase Edge Functions)
