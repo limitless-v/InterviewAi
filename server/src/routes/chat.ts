@@ -2,13 +2,34 @@ import { Router } from "express";
 import { requireAuth, AuthedRequest } from "../middleware/auth.js";
 import { Document } from "../models/Document.js";
 import { ChatSession } from "../models/ChatSession.js";
-import OpenAI from "openai";
 import { ENV } from "../config/env.js";
 import { cosineSimilarity } from "../utils/similarity.js";
 import { embedTexts } from "../utils/embeddings.js";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: ENV.OPENAI_API_KEY });
+
+async function callGroqChat(messages: Array<{ role: string; content: string }>) {
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ENV.GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "llama-3.1-8b-instant",
+      messages,
+      temperature: 0.7
+    })
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    const err: any = new Error(`Groq error ${resp.status}: ${text}`);
+    (err.status = resp.status);
+    throw err;
+  }
+  const data: any = await resp.json();
+  return data.choices?.[0]?.message?.content || "";
+}
 
 router.post("/start", requireAuth, async (req: AuthedRequest, res) => {
   try {
@@ -18,13 +39,7 @@ router.post("/start", requireAuth, async (req: AuthedRequest, res) => {
 
     const prompt = `Based on this job description, generate exactly 3 interview questions that would assess a candidate's qualifications. Return only the questions, numbered 1-3.\n\nJob Description:\n${jdDoc.textContent}`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7
-    });
-
-    const questions = completion.choices[0]?.message?.content || "";
+    const questions = await callGroqChat([{ role: "user", content: prompt }]);
 
     const session = await ChatSession.create({
       userId: req.userId,
@@ -36,6 +51,10 @@ router.post("/start", requireAuth, async (req: AuthedRequest, res) => {
 
     return res.json({ success: true, session, questions });
   } catch (e: any) {
+    const status = e?.status || e?.response?.status;
+    if (status === 429) {
+      return res.status(429).json({ error: "LLM quota or rate limit exceeded.", code: "LLM_QUOTA" });
+    }
     return res.status(500).json({ error: e.message });
   }
 });
@@ -64,17 +83,13 @@ router.post("/query", requireAuth, async (req: AuthedRequest, res) => {
 
     const evalPrompt = `You are an interview evaluator. The candidate was asked: "${lastQuestion}"\n\nTheir response: "${message}"\n\nRelevant resume/JD context:\n${scored.map((s, i) => `Chunk ${i + 1}: ${s.text}`).join("\n\n")}\n\nProvide:\n1. A score from 1-10\n2. Brief feedback (max 100 words)\n3. Cite relevant chunks by number\n\nReturn JSON: {"score": number, "feedback": "text", "citations": ["Chunk N", ...]}`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: evalPrompt }],
-      temperature: 0.5
-    });
+    const evalText = await callGroqChat([{ role: "user", content: evalPrompt }]);
 
     let evaluation: any;
     try {
-      evaluation = JSON.parse(completion.choices[0]?.message?.content || "{}");
+      evaluation = JSON.parse(evalText || "{}");
     } catch {
-      evaluation = { score: 5, feedback: completion.choices[0]?.message?.content || "", citations: [] };
+      evaluation = { score: 5, feedback: evalText || "", citations: [] };
     }
 
     const updatedMessages = [

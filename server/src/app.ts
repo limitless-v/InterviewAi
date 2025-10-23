@@ -5,6 +5,7 @@ import { json } from "express";
 import authRoutes from "./routes/auth.js";
 import documentRoutes from "./routes/documents.js";
 import chatRoutes from "./routes/chat.js";
+import { ENV } from "./config/env.js";
 
 const app = express();
 
@@ -26,6 +27,14 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/chat", chatRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+// Introspection endpoint to verify LLM provider configuration
+app.get("/api/llm/health", (_req, res) => {
+  return res.json({
+    provider: ENV.LLM_PROVIDER,
+    hasGroqKey: Boolean(ENV.GROQ_API_KEY)
+  });
+});
 
 // Global error handler to ensure consistent JSON and CORS headers
 app.use((err: any, req: any, res: any, _next: any) => {

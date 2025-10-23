@@ -10,7 +10,8 @@ export const ENV = {
   PORT: process.env.PORT ? Number(process.env.PORT) : 8080,
   MONGODB_URI: process.env.MONGODB_URI || "",
   JWT_SECRET: process.env.JWT_SECRET || "",
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+  LLM_PROVIDER: process.env.LLM_PROVIDER || "groq",
+  GROQ_API_KEY: process.env.GROQ_API_KEY || "",
   // S3 (no longer required)
   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || "",
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || "",
@@ -28,7 +29,8 @@ export function assertEnv() {
   const missing: string[] = [];
   if (!ENV.MONGODB_URI) missing.push("MONGODB_URI");
   if (!ENV.JWT_SECRET) missing.push("JWT_SECRET");
-  if (!ENV.OPENAI_API_KEY) missing.push("OPENAI_API_KEY");
+  if (ENV.LLM_PROVIDER !== "groq") missing.push("LLM_PROVIDER must be 'groq'");
+  if (!ENV.GROQ_API_KEY) missing.push("GROQ_API_KEY");
   if (!ENV.CLOUDINARY_CLOUD_NAME) missing.push("CLOUDINARY_CLOUD_NAME");
   if (!ENV.CLOUDINARY_API_KEY) missing.push("CLOUDINARY_API_KEY");
   if (!ENV.CLOUDINARY_API_SECRET) missing.push("CLOUDINARY_API_SECRET");
